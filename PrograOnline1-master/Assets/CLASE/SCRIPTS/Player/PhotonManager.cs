@@ -15,7 +15,7 @@ using UnityEngine.SceneManagement;
 public class PhotonManager : MonoBehaviour, INetworkRunnerCallbacks
 
     {
-    private NetworkRunner networkRunner;
+    private NetworkRunner networkRunner; //el network runner es quien controla todas las funciones de red en UNITY
     [SerializeField] private UnityEvent onPlayerJoined;
     [SerializeField] private NetworkPrefabRef playerPrefab;
     [SerializeField] private Dictionary<PlayerRef, NetworkObject> players = new Dictionary<PlayerRef, NetworkObject>();
@@ -28,6 +28,23 @@ public class PhotonManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         Debug.Log("Awake");
         networkRunner = GetComponent<NetworkRunner>();
+    }
+
+    // En este lobby el server (photon) sabe que existes de ahi tu puedes ir a cualquier lado, ya sea una partida una party o cualquier lugar del menu que el juego te permita
+
+    // Ejercicio 
+
+    //Mientras te esta conectando, deben de hacer aparecer en algun lado un mensaje de conectando. 
+    //Si ya te logro conectar, ahora si debe de aparecer la pantalla de menu principal
+
+    //pueden crear otro metodo si lo necesitan, pero no pueden borrar o no usar la tarea asincrona
+
+    public async Task ConnectToServerLobby()
+    {
+        // JoinSessionLobby sirve pasra conectarte a la partida, mas no iniciarla
+        // Nos puede conectar a una sala global o puede conectar a varios jugadores a una sala sin iniciar una partida
+
+        await networkRunner.JoinSessionLobby(SessionLobby.ClientServer);
     }
 
     private void Start() // Cuando inicia el script
@@ -63,7 +80,8 @@ private async Task StartGame(GameMode mode)
             GameMode = mode,
             SessionName = "00001", // esto me sirve para que solo haya una partida en todo el juego, no puede haber más de una sesion con el mismo nombre
             Scene = sceneInfo,
-            CustomLobbyName = "Looby de pruebas para clase"
+            CustomLobbyName = "Loby de pruebas",
+            PlayerCount = 2, 
         });
     }
 
