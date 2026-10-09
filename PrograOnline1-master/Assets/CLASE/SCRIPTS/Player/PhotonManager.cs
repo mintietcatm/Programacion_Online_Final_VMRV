@@ -241,6 +241,11 @@ public void StartGameAsClient()
         riflePickup = pickupObject.AddComponent<RiflePickup>();
         riflePickup.Initialize(runner);
     }
+
+    public void Metodo2()
+    {
+        Debug.Log("Metodo2");
+    }
     //Cuando un jugador sle de a partida
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {

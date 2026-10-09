@@ -79,4 +79,8 @@ public bool IsReloadPressed()
         return Keyboard.current != null && Keyboard.current.rKey.isPressed;
     }
 
+    internal bool IsShootPressed()
+    {
+        throw new NotImplementedException();
+    }
 }
