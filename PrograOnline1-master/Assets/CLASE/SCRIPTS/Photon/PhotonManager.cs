@@ -24,10 +24,19 @@ public class PhotonManager : MonoBehaviour, INetworkRunnerCallbacks
     private AmmoPickup ammoPickup;
     private RiflePickup riflePickup;
 
+   [SerializeField] public MenuPrincipal menu;
+    public string txtErrorDeConeccion;
+
+    public SessionManager sessionManager; //para los servidores
+
+
     private void Awake()
     {
         Debug.Log("Awake");
         networkRunner = GetComponent<NetworkRunner>();
+
+
+        CreateRunner();
     }
 
     // En este lobby el server (photon) sabe que existes de ahi tu puedes ir a cualquier lado, ya sea una partida una party o cualquier lugar del menu que el juego te permita
@@ -39,12 +48,28 @@ public class PhotonManager : MonoBehaviour, INetworkRunnerCallbacks
 
     //pueden crear otro metodo si lo necesitan, pero no pueden borrar o no usar la tarea asincrona
 
-    public async Task ConnectToServerLobby()
+    public async Task<bool> ConnectToServerLobby()
     {
         // JoinSessionLobby sirve pasra conectarte a la partida, mas no iniciarla
         // Nos puede conectar a una sala global o puede conectar a varios jugadores a una sala sin iniciar una partida
 
-        await networkRunner.JoinSessionLobby(SessionLobby.ClientServer);
+        if (networkRunner == null)
+        {
+            CreateRunner();
+        }
+
+        StartGameResult resultado = await networkRunner.JoinSessionLobby(SessionLobby.Custom, "prueba");
+
+        if (resultado.Ok)
+        {
+            return true;
+        }
+
+        txtErrorDeConeccion = resultado.ShutdownReason.ToString();
+        networkRunner = null;
+        return false;
+
+        //await networkRunner.JoinSessionLobby(SessionLobby.ClientServer);
     }
 
     private void Start() // Cuando inicia el script
@@ -58,47 +83,75 @@ public class PhotonManager : MonoBehaviour, INetworkRunnerCallbacks
 
     // Tarea asincrona que nos inicia la partida
 
-private async Task StartGame(GameMode mode)
+
+    private void CreateRunner() //crea el objeto que controla la coneccion de photon
     {
+        GameObject objeto = new GameObject("Runner");
+
+        networkRunner = objeto.AddComponent<NetworkRunner>(); //para que pueda crear la partida y manejar la red
+        objeto.AddComponent<NetworkSceneManagerDefault>(); //componente fusion
+
+        networkRunner.ProvideInput = true;
+        networkRunner.AddCallbacks(this);
+    }
+
+public  async Task<bool> StartGame(GameMode mode, string nombre, int jugadores, bool partidaPrivada)
+    {
+
+        if (networkRunner == null)
+        {
+
+            CreateRunner();
+        }
+
         SceneRef gameScene = SceneRef.FromIndex(0); // Referencia de donde esta la escena, ya sea por índice o nombre
 
         NetworkSceneInfo sceneInfo = new NetworkSceneInfo(); // En esta variable voy a guardar las escenas a usar en mi juego, solo mientras estoy jugando
                                                              // 0 menu / 1 primer mapa / 2 segundo mapa / 3 menu de zombies
 
+
+
         if (gameScene.IsValid) // revisa que el índice sea válido
         {
             sceneInfo.AddSceneRef(gameScene,LoadSceneMode.Additive); // añadimos la escena a la lista de escenas que podemos usar
         }
-        else
-        {
-            Debug.LogError("Escena no valida");
-        }
 
-        // argumentos son como los parametros de un método, sin embargo, argumentos se refiere a los datos que pide una llamada a la api
-        await networkRunner.StartGame(new StartGameArgs()
+        StartGameResult resultado = await networkRunner.StartGame(new StartGameArgs()
         {
             GameMode = mode,
-            SessionName = "00001", // esto me sirve para que solo haya una partida en todo el juego, no puede haber más de una sesion con el mismo nombre
+            SessionName = nombre,
             Scene = sceneInfo,
-            CustomLobbyName = "Loby de pruebas",
-            PlayerCount = 2, 
+            SceneManager = networkRunner.GetComponent<NetworkSceneManagerDefault>(),
+            CustomLobbyName = "prueba",
+            PlayerCount = jugadores,
+            IsVisible = !partidaPrivada,
+            IsOpen = true,
+            EnableClientSessionCreation = false
         });
+
+
+            if (resultado.Ok)
+        {
+            return true;
+        }
+
+        txtErrorDeConeccion = resultado.ShutdownReason.ToString();
+        networkRunner = null;
+        return false;
+
+       
     }
 
 
 public void StartGameAsHost()
     {
-        if (menuPanel != null) menuPanel.SetActive(false);
-
-        Task startGame = StartGame(GameMode.Host);
+        menu.PartidaRapida();
     }
 
 
 public void StartGameAsClient()
     {
-        if (menuPanel != null) menuPanel.SetActive(false);
-
-        Task startGame = StartGame(GameMode.Client);
+        menu.PartidaRandom();
     }
 
     //Se manda lamar cuando te conectas, ya sea como clliente o host
@@ -274,7 +327,7 @@ public void StartGameAsClient()
     //Cuando se crea una partida y temina/elimina una partida, tanto pub como privs
     public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList)
     {
-        //throw new NotImplementedException();
+        sessionManager.Actualizar(sessionList);
     }
     //Cuando el host o server
     public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
